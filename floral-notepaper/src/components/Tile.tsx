@@ -86,7 +86,7 @@ export function Tile({
   const tileColor = normalizeTileColor(color);
   const { borderColor, cornerColor, titleColor, contentColor, emptyColor } = useMemo(() => {
     const isLightBg = chroma(tileColor).luminance() > 0.18;
-    const mixTarget = isLightBg ? "#1a1a18" : "#ffffff";
+    const mixTarget = isLightBg ? "#171717" : "#ffffff";
     return {
       borderColor: chroma.mix(tileColor, mixTarget, 0.18).alpha(0.55).css(),
       cornerColor: chroma.mix(tileColor, mixTarget, 0.3).alpha(0.26).css(),

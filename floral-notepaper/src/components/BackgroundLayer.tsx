@@ -51,7 +51,7 @@ export function BackgroundLayer({ config }: BackgroundLayerProps) {
           }}
         />
       )}
-      <div className="absolute inset-0 bg-cloud" style={{ opacity: dim }} />
+      <div className="absolute inset-0 bg-paper" style={{ opacity: dim }} />
     </div>
   );
 }

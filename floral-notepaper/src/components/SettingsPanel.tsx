@@ -88,7 +88,7 @@ export function SettingsPanel({ config, onChange, onChooseNotesDir, onClose }: S
   );
 
   return (
-    <aside className="w-[360px] h-full shrink-0 border-l border-paper-deep/30 bg-cloud/92 backdrop-blur-sm flex flex-col">
+    <aside className="w-[360px] h-full shrink-0 border-l border-paper-deep/30 bg-paper/92 backdrop-blur-sm flex flex-col">
       <div className="flex items-center justify-between h-11 px-4 border-b border-paper-deep/25">
         <h2 className="text-[13px] font-display font-medium text-ink-soft">
           {t("settings.title", { defaultValue: "应用设置" })}
@@ -317,7 +317,7 @@ export function SettingsPanel({ config, onChange, onChooseNotesDir, onClose }: S
                 type="text"
                 value={config.tileColor}
                 onChange={(event) => setConfigValue("tileColor", event.target.value)}
-                placeholder="#f6f3ec"
+                placeholder="#f8f8f8"
                 spellCheck={false}
                 className="min-w-0 flex-1 h-8 px-2.5 rounded-lg bg-paper-warm/70 border border-paper-deep/40 text-[12px] font-mono text-ink-soft outline-none"
               />

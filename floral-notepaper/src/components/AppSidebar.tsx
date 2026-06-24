@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export type AppView = "main" | "providers" | "settings";
+export type AppView = "home" | "main" | "settings";
 
 interface AppSidebarProps {
   activeView: AppView;
@@ -13,6 +13,15 @@ interface SidebarItem {
   icon: (props: { size?: number }) => React.ReactNode;
 }
 
+function HomeIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <polyline points="9 22 9 12 15 12 15 22" />
+    </svg>
+  );
+}
+
 function NoteIcon({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -20,17 +29,6 @@ function NoteIcon({ size = 18 }: { size?: number }) {
       <polyline points="16 3 16 8 21 8" />
       <line x1="8" y1="12" x2="16" y2="12" />
       <line x1="8" y1="16" x2="14" y2="16" />
-    </svg>
-  );
-}
-
-function ProviderIcon({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-      <line x1="8" y1="21" x2="16" y2="21" />
-      <line x1="12" y1="17" x2="12" y2="21" />
-      <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01" />
     </svg>
   );
 }
@@ -45,21 +43,16 @@ function SettingsIcon({ size = 18 }: { size?: number }) {
 }
 
 const sidebarItems: SidebarItem[] = [
+  { view: "home", label: "首页", icon: HomeIcon },
   { view: "main", label: "笔记", icon: NoteIcon },
-  { view: "providers", label: "供应商", icon: ProviderIcon },
-  { view: "settings", label: "设置", icon: SettingsIcon },
 ];
 
 export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const settingsActive = activeView === "settings";
 
   return (
-    <nav className="w-[52px] h-full bg-paper/60 border-r border-paper-deep/25 flex flex-col items-center py-4 gap-1 shrink-0">
-      <div className="mb-3">
-        <div className="w-8 h-8 rounded-xl bg-bamboo/90 flex items-center justify-center">
-          <span className="text-cloud text-[13px] font-display font-bold tracking-wide">花</span>
-        </div>
-      </div>
+    <nav className="w-[52px] h-full bg-paper flex flex-col items-center py-4 gap-1 shrink-0">
 
       {sidebarItems.map((item, idx) => {
         const isActive = activeView === item.view;
@@ -71,16 +64,13 @@ export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
             onClick={() => onViewChange(item.view)}
             onMouseEnter={() => setHoveredIdx(idx)}
             onMouseLeave={() => setHoveredIdx(null)}
-            className={`
-              relative w-9 h-9 flex items-center justify-center rounded-xl
-              transition-all duration-200 cursor-pointer group
-              ${isActive
+            className={`relative w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 cursor-pointer group ${
+              isActive
                 ? "text-bamboo bg-bamboo-mist/80"
                 : isHovered
                   ? "text-ink-soft bg-paper-warm/80"
                   : "text-ink-ghost hover:text-ink-faint"
-              }
-            `}
+            }`}
             title={item.label}
           >
             <item.icon size={17} />
@@ -93,11 +83,21 @@ export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
 
       <div className="flex-1" />
 
-      <div className="w-5 h-px bg-paper-deep/30 mb-1" />
-
-      <div className="text-[9px] text-ink-ghost/40 font-mono tracking-wider select-none">
-        v1.0
-      </div>
+      <button
+        type="button"
+        onClick={() => onViewChange("settings")}
+        className={`relative w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 cursor-pointer group ${
+          settingsActive
+            ? "text-bamboo bg-bamboo-mist/80"
+            : "text-ink-ghost hover:text-ink-soft hover:bg-paper-warm/80"
+        }`}
+        title="设置"
+      >
+        <SettingsIcon size={17} />
+        <div className="absolute left-full ml-2 px-2 py-1 rounded-md bg-ink/85 text-cloud text-[11px] whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 z-50 shadow-lg">
+          设置
+        </div>
+      </button>
     </nav>
   );
 }

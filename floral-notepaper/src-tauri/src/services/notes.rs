@@ -80,6 +80,8 @@ pub struct AppConfig {
     pub open_at_cursor: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub providers: Vec<ProviderConfig>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub default_models: BTreeMap<String, Option<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -233,7 +235,7 @@ struct MetadataFile {
 
 #[derive(Debug, Clone)]
 pub struct NoteStore {
-    base_dir: PathBuf,
+    pub base_dir: PathBuf,
 }
 
 pub fn default_store() -> Result<NoteStore, AppError> {
@@ -802,6 +804,7 @@ impl NoteStore {
             toggle_visibility_shortcut: default_toggle_visibility_shortcut(),
             open_at_cursor: default_open_at_cursor(),
             providers: vec![],
+            default_models: BTreeMap::new(),
         }
     }
 

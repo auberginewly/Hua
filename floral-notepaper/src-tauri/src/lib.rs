@@ -4,6 +4,7 @@ pub mod services;
 
 use locales::Locale;
 use services::notes::{default_store, AppConfig, AppError, Note, NoteMetadata, SaveNoteRequest};
+use services::stats;
 use std::{fs, path::PathBuf};
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -300,6 +301,21 @@ fn take_startup_file() -> Option<String> {
     desktop::take_startup_file()
 }
 
+#[tauri::command]
+fn stats_get() -> Result<stats::StatsData, AppError> {
+    stats::get_stats()
+}
+
+#[tauri::command]
+fn stats_log_usage(
+    provider: String,
+    input_tokens: u64,
+    output_tokens: u64,
+    cached_tokens: u64,
+) -> Result<(), AppError> {
+    stats::log_usage(provider, input_tokens, output_tokens, cached_tokens)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -354,7 +370,9 @@ pub fn run() {
             open_tile_window,
             toggle_tile_window,
             open_note_in_editor,
-            take_startup_file
+            take_startup_file,
+            stats_get,
+            stats_log_usage
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

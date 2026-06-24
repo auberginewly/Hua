@@ -56,4 +56,5 @@ export interface AppConfig {
   backgroundPositionX?: number;
   backgroundPositionY?: number;
   providers?: ProviderConfig[];
+  defaultModels?: Record<string, string | null>;
 }

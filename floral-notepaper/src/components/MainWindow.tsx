@@ -3,7 +3,6 @@ import type { MouseEvent } from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { emit, listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { exportMarkdownNote, importMarkdownNote } from "../features/importExport/api";
 import { MarkdownPreview } from "../features/markdown/MarkdownPreview";
 import {
@@ -53,13 +52,7 @@ import {
   type NoteContextMenuAction,
 } from "../features/notes/noteContextMenu";
 import { openNotepadWindow, takeStartupFile, toggleTileWindow } from "../features/windows/api";
-import {
-  closeCurrentWindow,
-  minimizeCurrentWindow,
-  toggleMaximizeCurrentWindow,
-  isCurrentWindowMaximized,
-  startCurrentWindowDrag,
-} from "../features/windows/controls";
+
 import {
   TILE_WINDOW_CLOSED_EVENT,
   TILE_WINDOW_UNPINNED_EVENT,
@@ -1377,18 +1370,6 @@ export function MainWindow({
     }
   };
 
-  const [isMaximized, setIsMaximized] = useState(false);
-
-  useEffect(() => {
-    void isCurrentWindowMaximized().then(setIsMaximized);
-    const unlisten = getCurrentWindow().onResized(() => {
-      void isCurrentWindowMaximized().then(setIsMaximized);
-    });
-    return () => {
-      void unlisten.then((fn) => fn());
-    };
-  }, []);
-
   useEffect(() => {
     if (!isResizingSidebar) return;
 
@@ -1456,328 +1437,13 @@ export function MainWindow({
 
   const selectedTilePinned = selectedId ? pinnedTileIds.has(selectedId) : false;
 
-  const handleTitleBarDrag = (event: MouseEvent<HTMLDivElement>) => {
-    if ((event.target as HTMLElement).closest("button")) return;
-    void startCurrentWindowDrag().catch(() => undefined);
-  };
-
-  const toggleMaximize = () => {
-    void toggleMaximizeCurrentWindow().then(() => isCurrentWindowMaximized().then(setIsMaximized));
-  };
-
-  const handleTitleBarDoubleClick = (event: MouseEvent<HTMLDivElement>) => {
-    if ((event.target as HTMLElement).closest("button")) return;
-    toggleMaximize();
-  };
-
-  const handleMinimize = () => {
-    void minimizeCurrentWindow();
-  };
-
-  const handleMaximize = () => {
-    toggleMaximize();
-  };
-
-  const handleClose = () => {
-    void closeCurrentWindow();
-  };
-
   return (
-    <div className="w-full h-screen flex flex-col">
-      <div className="relative noise-bg bg-cloud overflow-hidden flex flex-col flex-1">
+    <div className="w-full h-full flex flex-col">
+      <div className="relative bg-paper overflow-hidden flex flex-col flex-1">
         <BackgroundLayer config={settingsConfig} />
-        <div
-          className="relative z-10 flex items-center justify-between pl-5 pr-0 h-11 bg-paper/55 backdrop-blur-[1px] border-b border-paper-deep/30 shrink-0 select-none cursor-default"
-          onMouseDown={handleTitleBarDrag}
-          onDoubleClick={handleTitleBarDoubleClick}
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="text-[13px] font-display font-medium text-ink-soft tracking-wide">
-              花笺
-            </span>
-            <span className="text-[11px] text-ink-ghost font-body">—</span>
-            <span className="text-[11px] text-ink-faint font-body truncate max-w-[240px]">
-              {title ||
-                selectedNote?.preview ||
-                t("common.untitledNote", { defaultValue: "无标题笔记" })}
-            </span>
-          </div>
-          <div className="flex items-center">
-            {errorMessage && (
-              <span className="max-w-[200px] truncate text-[11px] text-red-400 mr-2">
-                {errorMessage}
-              </span>
-            )}
-            <button
-              onClick={() => void handleOpenNotepad()}
-              className="w-10 h-11 flex items-center justify-center text-ink-ghost hover:text-bamboo hover:bg-bamboo-mist/50 transition-all cursor-pointer"
-              title={t("main.window.quickNotepad", { defaultValue: "快捷便签" })}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M4 4h16v14H7l-3 3V4z" />
-                <path d="M8 9h8M8 13h5" />
-              </svg>
-            </button>
-            <button
-              onClick={() => void handleOpenSettings()}
-              className="w-10 h-11 flex items-center justify-center text-ink-ghost hover:text-ink-faint hover:bg-paper-warm transition-all cursor-pointer"
-              title={t("main.window.settings", { defaultValue: "设置" })}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
-            </button>
-
-            <div
-              ref={colorPaletteRef}
-              className="h-11 flex items-center gap-1"
-              onMouseDown={(event) => event.stopPropagation()}
-            >
-              <button
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  syncSelectedTextRange();
-                }}
-                onClick={toggleTextColorPalette}
-                disabled={!selectedId}
-                className="w-10 h-11 flex items-center justify-center text-ink-ghost hover:text-bamboo hover:bg-bamboo-mist/50 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                title={selectionRangeRef.current ? "文字颜色" : "先在编辑区选中文本"}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 3l4 8-4 2-4-2 4-8z" />
-                  <path d="M6 15a6 6 0 0 0 12 0" />
-                  <path d="M9 19h6" />
-                </svg>
-              </button>
-              {textColorPaletteOpen && (
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl border border-paper-deep/20 bg-paper/95 shadow-sm">
-                  {(() => {
-                    const hasRange = Boolean(selectedTextRange ?? selectionRangeRef.current);
-                    return (
-                      <>
-                        <button
-                          type="button"
-                          disabled={!hasRange}
-                          onMouseDown={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            if (!hasRange) return;
-                            handleClearTextColor();
-                          }}
-                          className="px-2 h-5 rounded-md border border-paper-deep/30 text-[10px] text-ink-soft hover:text-bamboo hover:border-bamboo/40 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
-                          title={hasRange ? "清除文字颜色" : "先在编辑区选中文本"}
-                          aria-label="清除文字颜色"
-                        >
-                          清除
-                        </button>
-                        {TEXT_COLOR_OPTIONS.map((color) => (
-                          <button
-                            key={color}
-                            type="button"
-                            disabled={!hasRange}
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              if (!hasRange) return;
-                              handleApplyTextColor(color);
-                            }}
-                            className="w-5 h-5 rounded-full border border-paper-deep/30 transition-transform hover:scale-110 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:scale-100"
-                            style={{ backgroundColor: color }}
-                            title={hasRange ? color : "先在编辑区选中文本"}
-                            aria-label={`选择文字颜色 ${color}`}
-                          />
-                        ))}
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
-              <button
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  syncSelectedTextRange();
-                }}
-                onClick={toggleHighlightPalette}
-                disabled={!selectedId}
-                className="w-10 h-11 flex items-center justify-center text-ink-ghost hover:text-bamboo hover:bg-bamboo-mist/50 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                title={selectionRangeRef.current ? "荧光标记" : "先在编辑区选中文本"}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M6 16l8-8 4 4-8 8H6z" />
-                  <path d="M14 6l4 4" />
-                  <path d="M4 20h8" />
-                </svg>
-              </button>
-              {highlightPaletteOpen && (
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl border border-paper-deep/20 bg-paper/95 shadow-sm">
-                  {(() => {
-                    const hasRange = Boolean(selectedTextRange ?? selectionRangeRef.current);
-                    return (
-                      <>
-                        <button
-                          type="button"
-                          disabled={!hasRange}
-                          onMouseDown={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            if (!hasRange) return;
-                            handleClearHighlightColor();
-                          }}
-                          className="px-2 h-5 rounded-md border border-paper-deep/30 text-[10px] text-ink-soft hover:text-bamboo hover:border-bamboo/40 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
-                          title={hasRange ? "清除荧光标记" : "先在编辑区选中文本"}
-                          aria-label="清除荧光标记"
-                        >
-                          清除
-                        </button>
-                        {HIGHLIGHT_COLOR_OPTIONS.map((color) => (
-                          <button
-                            key={color}
-                            type="button"
-                            disabled={!hasRange}
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              if (!hasRange) return;
-                              handleApplyHighlightColor(color);
-                            }}
-                            className="w-5 h-5 rounded-sm border border-paper-deep/30 transition-transform hover:scale-110 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:scale-100"
-                            style={{ backgroundColor: color }}
-                            title={hasRange ? color : "先在编辑区选中文本"}
-                            aria-label={`选择荧光颜色 ${color}`}
-                          />
-                        ))}
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={() => setDeepSeekOpen(true)}
-              className="w-10 h-11 flex items-center justify-center text-ink-ghost hover:text-bamboo hover:bg-bamboo-mist/50 transition-all cursor-pointer"
-              title="DeepSeek 助手"
-            >
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                <path d="M8 10h.01M12 10h.01M16 10h.01" />
-              </svg>
-            </button>
-
-            <div className="w-px h-4 bg-paper-deep/30 mx-0.5" />
-
-            <button
-              onClick={handleMinimize}
-              className="w-11 h-11 flex items-center justify-center text-ink-ghost hover:text-ink-soft hover:bg-paper-warm transition-all cursor-pointer"
-              title={t("main.window.minimize", { defaultValue: "最小化" })}
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12">
-                <rect x="1" y="5.5" width="10" height="1" fill="currentColor" rx="0.5" />
-              </svg>
-            </button>
-            <button
-              onClick={handleMaximize}
-              className="w-11 h-11 flex items-center justify-center text-ink-ghost hover:text-ink-soft hover:bg-paper-warm transition-all cursor-pointer"
-              title={
-                isMaximized
-                  ? t("main.window.restore", { defaultValue: "还原" })
-                  : t("main.window.maximize", { defaultValue: "最大化" })
-              }
-            >
-              {isMaximized ? (
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 12 12"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.2"
-                >
-                  <rect x="3" y="3" width="7" height="7" rx="1" />
-                  <path d="M3 5H2V2a1 1 0 0 1 1-1h5v1" />
-                </svg>
-              ) : (
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 12 12"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.2"
-                >
-                  <rect x="1.5" y="1.5" width="9" height="9" rx="1.5" />
-                </svg>
-              )}
-            </button>
-            <button
-              onClick={handleClose}
-              className="w-11 h-11 flex items-center justify-center text-ink-ghost hover:text-red-500 hover:bg-danger-bg transition-all cursor-pointer"
-              title={t("main.window.close", { defaultValue: "关闭" })}
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 12 12"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              >
-                <path d="M2 2l8 8M10 2l-8 8" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
         <div className="relative z-10 flex flex-1 min-h-0">
           <div
-            className="border-r border-paper-deep/30 bg-paper/40 shrink-0 overflow-hidden transition-[width] duration-[600ms]"
+            className="border-r border-paper-deep/30 shrink-0 overflow-hidden transition-[width] duration-[600ms]"
             style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}
           >
             <div className="flex flex-col h-full" style={{ width: `${sidebarWidth}px` }}>
@@ -2476,12 +2142,50 @@ export function MainWindow({
                 )}
               </div>
 
-              <SlidingButtonGroup
-                options={viewModeOptions}
-                value={viewMode}
-                onChange={setViewMode}
-                buttonClassName="px-3 py-1"
-              />
+              <div className="flex items-center gap-0.5">
+                {errorMessage && (
+                  <span className="max-w-[160px] truncate text-[11px] text-red-400 mr-1">
+                    {errorMessage}
+                  </span>
+                )}
+                <button
+                  onClick={() => void handleOpenNotepad()}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-ink-ghost hover:text-bamboo hover:bg-bamboo-mist/50 transition-all cursor-pointer"
+                  title={t("main.window.quickNotepad", { defaultValue: "快捷便签" })}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 4h16v14H7l-3 3V4z" />
+                    <path d="M8 9h8M8 13h5" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => void handleOpenSettings()}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-ink-ghost hover:text-ink-faint hover:bg-paper-warm transition-all cursor-pointer"
+                  title={t("main.window.settings", { defaultValue: "设置" })}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setDeepSeekOpen(true)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-ink-ghost hover:text-bamboo hover:bg-bamboo-mist/50 transition-all cursor-pointer"
+                  title="AI 助手"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    <path d="M8 10h.01M12 10h.01M16 10h.01" />
+                  </svg>
+                </button>
+                <div className="h-4 w-px bg-paper-deep/30 mx-0.5" />
+                <SlidingButtonGroup
+                  options={viewModeOptions}
+                  value={viewMode}
+                  onChange={setViewMode}
+                  buttonClassName="px-3 py-1"
+                />
+              </div>
             </div>
 
             <div
@@ -2569,6 +2273,43 @@ export function MainWindow({
                             {button.label}
                           </button>
                         ))}
+                        <div className="h-4 w-px bg-paper-deep/20 mx-0.5" />
+                        <div ref={colorPaletteRef} className="flex items-center gap-0.5" onMouseDown={(e) => e.stopPropagation()}>
+                          <button
+                            onMouseDown={(e) => { e.preventDefault(); syncSelectedTextRange(); }}
+                            onClick={toggleTextColorPalette}
+                            disabled={!selectedId}
+                            className="w-6 h-6 flex items-center justify-center rounded text-ink-ghost hover:text-bamboo hover:bg-bamboo-mist/50 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                            title={selectionRangeRef.current ? "文字颜色" : "先在编辑区选中文本"}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 3l4 8-4 2-4-2 4-8z" /><path d="M6 15a6 6 0 0 0 12 0" /><path d="M9 19h6" /></svg>
+                          </button>
+                          {textColorPaletteOpen && (
+                            <div className="flex items-center gap-1 px-1.5 py-1 rounded-lg border border-paper-deep/20 bg-paper/95 shadow-sm">
+                              <button type="button" disabled={!Boolean(selectedTextRange ?? selectionRangeRef.current)} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); if (!(selectedTextRange ?? selectionRangeRef.current)) return; handleClearTextColor(); }} className="px-1.5 h-4 rounded text-[9px] text-ink-soft hover:text-bamboo cursor-pointer disabled:opacity-35">清除</button>
+                              {TEXT_COLOR_OPTIONS.map((color) => (
+                                <button key={color} type="button" disabled={!Boolean(selectedTextRange ?? selectionRangeRef.current)} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); if (!(selectedTextRange ?? selectionRangeRef.current)) return; handleApplyTextColor(color); }} className="w-4 h-4 rounded-full border border-paper-deep/30 hover:scale-110 transition-transform cursor-pointer disabled:opacity-35" style={{ backgroundColor: color }} />
+                              ))}
+                            </div>
+                          )}
+                          <button
+                            onMouseDown={(e) => { e.preventDefault(); syncSelectedTextRange(); }}
+                            onClick={toggleHighlightPalette}
+                            disabled={!selectedId}
+                            className="w-6 h-6 flex items-center justify-center rounded text-ink-ghost hover:text-bamboo hover:bg-bamboo-mist/50 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                            title={selectionRangeRef.current ? "荧光标记" : "先在编辑区选中文本"}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 16l8-8 4 4-8 8H6z" /><path d="M14 6l4 4" /><path d="M4 20h8" /></svg>
+                          </button>
+                          {highlightPaletteOpen && (
+                            <div className="flex items-center gap-1 px-1.5 py-1 rounded-lg border border-paper-deep/20 bg-paper/95 shadow-sm">
+                              <button type="button" disabled={!Boolean(selectedTextRange ?? selectionRangeRef.current)} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); if (!(selectedTextRange ?? selectionRangeRef.current)) return; handleClearHighlightColor(); }} className="px-1.5 h-4 rounded text-[9px] text-ink-soft hover:text-bamboo cursor-pointer disabled:opacity-35">清除</button>
+                              {HIGHLIGHT_COLOR_OPTIONS.map((color) => (
+                                <button key={color} type="button" disabled={!Boolean(selectedTextRange ?? selectionRangeRef.current)} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); if (!(selectedTextRange ?? selectionRangeRef.current)) return; handleApplyHighlightColor(color); }} className="w-4 h-4 rounded-sm border border-paper-deep/30 hover:scale-110 transition-transform cursor-pointer disabled:opacity-35" style={{ backgroundColor: color }} />
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       <div className="flex-1 overflow-hidden px-5 pb-4 relative">
@@ -2658,6 +2399,7 @@ export function MainWindow({
               onClose={() => setDeepSeekOpen(false)}
               docTitle={title}
               docContent={content}
+              providers={settingsConfig?.providers ?? []}
             />
 
             <div className="flex items-center justify-between px-4 h-7 border-t border-paper-deep/20 bg-paper/30 shrink-0">
@@ -2721,7 +2463,7 @@ export function MainWindow({
       </div>
       {noteMenu && noteMenuTarget && (
         <div
-          className={`fixed z-[9999] min-w-[168px] py-1.5 bg-cloud/95 backdrop-blur-sm border border-paper-deep/50 rounded-lg overflow-hidden select-none ${noteMenuClosing ? "animate-menu-exit" : "animate-menu-enter"}`}
+          className={`fixed z-[9999] min-w-[168px] py-1.5 bg-paper/95 backdrop-blur-sm border border-paper-deep/50 rounded-lg overflow-hidden select-none ${noteMenuClosing ? "animate-menu-exit" : "animate-menu-enter"}`}
           style={{ left: noteMenu.x, top: noteMenu.y }}
           onMouseDown={(event) => event.stopPropagation()}
         >
@@ -2783,7 +2525,7 @@ export function MainWindow({
 
       {categoryMenu && (
         <div
-          className={`fixed z-[9999] min-w-[140px] py-1.5 bg-cloud/95 backdrop-blur-sm border border-paper-deep/50 rounded-lg overflow-hidden select-none ${categoryMenuClosing ? "animate-menu-exit" : "animate-menu-enter"}`}
+          className={`fixed z-[9999] min-w-[140px] py-1.5 bg-paper/95 backdrop-blur-sm border border-paper-deep/50 rounded-lg overflow-hidden select-none ${categoryMenuClosing ? "animate-menu-exit" : "animate-menu-enter"}`}
           style={{ left: categoryMenu.x, top: categoryMenu.y }}
           onMouseDown={(event) => event.stopPropagation()}
         >

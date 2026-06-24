@@ -219,7 +219,7 @@ export function ContextMenuProvider({ children }: { children: React.ReactNode })
       {menu && (
         <div
           ref={menuRef}
-          className={`fixed z-[9999] min-w-[152px] py-1.5 bg-cloud/95 backdrop-blur-sm border border-paper-deep/50 rounded-lg overflow-hidden select-none ${menuClosing ? "animate-menu-exit" : "animate-menu-enter"}`}
+          className={`fixed z-[9999] min-w-[152px] py-1.5 bg-paper/95 backdrop-blur-sm border border-paper-deep/50 rounded-lg overflow-hidden select-none ${menuClosing ? "animate-menu-exit" : "animate-menu-enter"}`}
           style={{
             left: menu.x,
             top: menu.y,

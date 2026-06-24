@@ -37,7 +37,7 @@ describe("settings api", () => {
       defaultViewMode: "split",
       noteAutoSave: true,
       noteSurfaceAutoSave: true,
-      tileColor: "#f6f3ec",
+      tileColor: "#f8f8f8",
       tileColorMode: "system",
       theme: "light",
       fontSize: 14,

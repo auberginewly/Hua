@@ -5,22 +5,22 @@ import { MainWindow } from "./components/MainWindow";
 import { NotePad } from "./components/NotePad";
 import { TileShowcase } from "./components/TileShowcase";
 import { AppSidebar } from "./components/AppSidebar";
-import { ModelProviderPage } from "./components/ModelProviderPage";
+import { SettingsPage } from "./components/SettingsPage";
+import { DashboardPage } from "./components/DashboardPage";
+import { WindowFrame } from "./components/WindowFrame";
 import { tabToIndentListener } from "indent-textarea";
 import { getConfig, saveConfig } from "./features/settings/api";
 import { applyTheme, watchSystemTheme } from "./features/settings/theme";
 import type { AppConfig, ThemeOption, ProviderConfig } from "./features/settings/types";
+import type { AppView } from "./components/AppSidebar";
 import { getInitialRoute } from "./features/windows/windowRoutes";
 import { syncLanguage } from "./locales";
 import { listen } from "@tauri-apps/api/event";
 
-type SidebarView = "main" | "providers" | "settings";
-
 function App() {
   const route = getInitialRoute();
-  const activeView = route.view;
 
-  const [sidebarView, setSidebarView] = useState<SidebarView>("main");
+  const [sidebarView, setSidebarView] = useState<AppView>("home");
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [settingsConfig, setSettingsConfig] = useState<AppConfig | null>(null);
 
@@ -99,67 +99,75 @@ function App() {
           const saved = await saveConfig(updated);
           setSettingsConfig(saved);
         } catch {
-          // silently fail - config will be saved on next change
+          // silently fail
         }
       }
     },
     [settingsConfig],
   );
 
-  const handleSidebarChange = useCallback(
-    (view: SidebarView) => {
-      setSidebarView(view);
+  const handleConfigChange = useCallback(
+    async (newConfig: AppConfig) => {
+      setSettingsConfig(newConfig);
+      try {
+        const saved = await saveConfig(newConfig);
+        setSettingsConfig(saved);
+      } catch {
+        // silently fail
+      }
     },
     [],
   );
 
-  if (activeView === "notepad") {
+  if (route.view === "notepad") {
     return (
       <ContextMenuProvider>
-        <div className="app-window-shell h-screen font-body text-ink overflow-hidden">
+        <div className="h-full font-body text-ink overflow-hidden">
           <NotePad initialNoteId={route.noteId} />
         </div>
       </ContextMenuProvider>
     );
   }
 
-  if (activeView === "tile") {
+  if (route.view === "tile") {
     return (
       <ContextMenuProvider>
-        <div className="app-window-shell h-screen font-body text-ink overflow-hidden">
-          <TileShowcase noteId={route.noteId} />
-        </div>
+        <WindowFrame>
+          <div className="h-full font-body text-ink overflow-hidden">
+            <TileShowcase noteId={route.noteId} />
+          </div>
+        </WindowFrame>
       </ContextMenuProvider>
     );
   }
 
   return (
     <ContextMenuProvider>
-      <div className="app-window-shell h-screen font-body text-ink overflow-hidden flex">
-        <AppSidebar
-          activeView={sidebarView}
-          onViewChange={handleSidebarChange}
-        />
-        <div className="flex-1 flex flex-col min-w-0">
-          {sidebarView === "providers" ? (
-            <ModelProviderPage
-              providers={providers}
-              onProvidersChange={handleProvidersChange}
-            />
-          ) : sidebarView === "settings" && settingsConfig ? (
-            <div className="flex-1 flex min-h-0">
-              <MainWindow
-                initialSettingsOpen={true}
-                initialConfig={settingsConfig}
+      <WindowFrame>
+        <div className="h-full font-body text-ink overflow-hidden flex">
+          <AppSidebar
+            activeView={sidebarView}
+            onViewChange={setSidebarView}
+          />
+          <div className="flex-1 flex flex-col min-w-0">
+            {sidebarView === "home" ? (
+              <DashboardPage />
+            ) : sidebarView === "settings" && settingsConfig ? (
+              <SettingsPage
+                config={settingsConfig}
+                providers={providers}
+                onConfigChange={handleConfigChange}
+                onProvidersChange={handleProvidersChange}
+                onClose={() => setSidebarView("home")}
               />
-            </div>
-          ) : (
-            <MainWindow
-              initialConfig={settingsConfig ?? undefined}
-            />
-          )}
+            ) : (
+              <MainWindow
+                initialConfig={settingsConfig ?? undefined}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      </WindowFrame>
     </ContextMenuProvider>
   );
 }
