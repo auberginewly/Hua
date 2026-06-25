@@ -1332,6 +1332,17 @@ input::placeholder {
   transition: opacity 0.15s, background 0.15s;
 }
 
+.cowrite-block.merged {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.cowrite-block-merged-badge {
+  margin-left: 6px;
+  font-size: 10px;
+  color: var(--color-bamboo);
+}
+
 .cowrite-block:hover .cowrite-btn-regenerate {
   opacity: 1;
 }

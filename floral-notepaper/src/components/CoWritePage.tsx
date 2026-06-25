@@ -82,6 +82,9 @@ export function CoWritePage({
   const [humanInput, setHumanInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [selectedBlocks, setSelectedBlocks] = useState<Set<number>>(new Set());
+  const [mergedBlockIndices, setMergedBlockIndices] = useState<Set<number>>(
+    new Set(),
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [noteTitle, setNoteTitle] = useState<string | null>(null);
   const [autoTurn, setAutoTurn] = useState(false);
@@ -117,6 +120,7 @@ export function CoWritePage({
     setActiveSession(null);
     setActiveSessionId(null);
     setSelectedBlocks(new Set());
+    setMergedBlockIndices(new Set());
     setInspirations([]);
     listCoWriteSessions(noteId)
       .then(setSessions)
@@ -133,6 +137,7 @@ export function CoWritePage({
       setActiveSession(session);
       setActiveSessionId(sessionId);
       setSelectedBlocks(new Set());
+      setMergedBlockIndices(new Set());
       setErrorMessage(null);
       setInspirations([]);
     } catch (e) {
@@ -258,12 +263,19 @@ export function CoWritePage({
   // 撤回上一步
   const handleUndo = useCallback(async () => {
     if (!activeSession || activeSession.blocks.length === 0) return;
-    const last = activeSession.blocks[activeSession.blocks.length - 1];
+    const lastIndex = activeSession.blocks.length - 1;
+    const last = activeSession.blocks[lastIndex];
     const desc = last.author === "ai" ? "AI 的最后一段回复" : "你最后的输入";
     if (!window.confirm(`确定要撤回${desc}吗？`)) return;
     try {
       const updated = await undoLastTurn(activeSession.id);
       setActiveSession(updated);
+      setMergedBlockIndices((prev) => {
+        if (!prev.has(lastIndex)) return prev;
+        const next = new Set(prev);
+        next.delete(lastIndex);
+        return next;
+      });
       setErrorMessage(null);
     } catch (e) {
       console.error(e);
@@ -279,6 +291,13 @@ export function CoWritePage({
         activeSessionId,
         Array.from(selectedBlocks).sort((a, b) => a - b),
       );
+      setMergedBlockIndices((prev) => {
+        const next = new Set(prev);
+        for (const idx of selectedBlocks) {
+          next.add(idx);
+        }
+        return next;
+      });
       setSelectedBlocks(new Set());
       setErrorMessage(null);
     } catch (e) {
@@ -347,6 +366,7 @@ export function CoWritePage({
   );
 
   const toggleBlock = (index: number) => {
+    if (mergedBlockIndices.has(index)) return;
     const next = new Set(selectedBlocks);
     if (next.has(index)) {
       next.delete(index);
@@ -583,11 +603,15 @@ export function CoWritePage({
                   key={i}
                   className={`cowrite-block cowrite-author-${block.author} ${
                     selectedBlocks.has(i) ? "selected" : ""
-                  }`}
+                  } ${mergedBlockIndices.has(i) ? "merged" : ""}`}
                   onClick={() => toggleBlock(i)}
+                  title={mergedBlockIndices.has(i) ? "已合并到笔记" : ""}
                 >
                   <span className="cowrite-block-author">
                     {block.author === "human" ? "你" : "AI"}
+                    {mergedBlockIndices.has(i) && (
+                      <span className="cowrite-block-merged-badge">✓</span>
+                    )}
                   </span>
                   <p className="cowrite-block-text">{block.text}</p>
                   {block.author === "ai" && (
@@ -633,7 +657,7 @@ export function CoWritePage({
                     className={`cowrite-btn-auto ${autoTurn ? "active" : ""}`}
                     onClick={() => setAutoTurn((v) => !v)}
                   >
-                    {autoTurn ? "自动续写中" : "手动模式"}
+                    {autoTurn ? "手动模式" : "自动续写"}
                   </button>
                   <button
                     className="cowrite-btn-submit"
@@ -677,12 +701,17 @@ export function CoWritePage({
             {activeSession.blocks.length > 0 && (
               <div className="cowrite-merge-bar">
                 <span className="cowrite-merge-hint">
-                  点击段落选中/取消，选中后合并到笔记
+                  点击段落选中/取消，已合并的段落无法再次选中
                 </span>
                 <button
                   className="cowrite-btn-merge"
                   onClick={() => handleMerge()}
-                  disabled={selectedBlocks.size === 0}
+                  disabled={
+                    selectedBlocks.size === 0 ||
+                    Array.from(selectedBlocks).some((i) =>
+                      mergedBlockIndices.has(i),
+                    )
+                  }
                 >
                   合并选中段落 ({selectedBlocks.size})
                 </button>
