@@ -82,7 +82,6 @@ export function CoWritePage({
   const [humanInput, setHumanInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [selectedBlocks, setSelectedBlocks] = useState<Set<number>>(new Set());
-  const [mergeDone, setMergeDone] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [noteTitle, setNoteTitle] = useState<string | null>(null);
   const [autoTurn, setAutoTurn] = useState(false);
@@ -118,7 +117,6 @@ export function CoWritePage({
     setActiveSession(null);
     setActiveSessionId(null);
     setSelectedBlocks(new Set());
-    setMergeDone(false);
     setInspirations([]);
     listCoWriteSessions(noteId)
       .then(setSessions)
@@ -135,7 +133,6 @@ export function CoWritePage({
       setActiveSession(session);
       setActiveSessionId(sessionId);
       setSelectedBlocks(new Set());
-      setMergeDone(false);
       setErrorMessage(null);
       setInspirations([]);
     } catch (e) {
@@ -278,8 +275,11 @@ export function CoWritePage({
   const handleMerge = useCallback(async () => {
     if (!activeSessionId || selectedBlocks.size === 0) return;
     try {
-      await mergeToNote(activeSessionId, Array.from(selectedBlocks).sort((a, b) => a - b));
-      setMergeDone(true);
+      await mergeToNote(
+        activeSessionId,
+        Array.from(selectedBlocks).sort((a, b) => a - b),
+      );
+      setSelectedBlocks(new Set());
       setErrorMessage(null);
     } catch (e) {
       console.error(e);
@@ -682,9 +682,9 @@ export function CoWritePage({
                 <button
                   className="cowrite-btn-merge"
                   onClick={() => handleMerge()}
-                  disabled={selectedBlocks.size === 0 || mergeDone}
+                  disabled={selectedBlocks.size === 0}
                 >
-                  {mergeDone ? "已合并" : `合并选中段落 (${selectedBlocks.size})`}
+                  合并选中段落 ({selectedBlocks.size})
                 </button>
               </div>
             )}
