@@ -25,6 +25,12 @@ export function recycleCurrentNotepad(): Promise<void> {
   });
 }
 
+/// Toggles the macOS native "document edited" dot in the red traffic-light
+/// button. No-op on non-macOS platforms (the backend command is a no-op there).
+export function setWindowDocumentEdited(edited: boolean): Promise<void> {
+  return invoke("set_document_edited", { edited });
+}
+
 export function minimizeCurrentWindow(): Promise<void> {
   return getCurrentWindow().minimize();
 }

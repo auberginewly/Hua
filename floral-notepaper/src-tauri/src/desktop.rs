@@ -1035,7 +1035,11 @@ pub fn handle_window_event(window: &Window, event: &WindowEvent) {
         return;
     };
 
-    match main_window_close_action(app_is_exiting(window.app_handle()), close_to_tray_enabled()) {
+    match main_window_close_action(
+        app_is_exiting(window.app_handle()),
+        close_to_tray_enabled(),
+        cfg!(target_os = "macos"),
+    ) {
         MainWindowCloseAction::AllowClose => {}
         MainWindowCloseAction::HideToTray => {
             api.prevent_close();
@@ -1051,10 +1055,16 @@ pub fn handle_window_event(window: &Window, event: &WindowEvent) {
     }
 }
 
-fn main_window_close_action(app_is_exiting: bool, close_to_tray: bool) -> MainWindowCloseAction {
+fn main_window_close_action(
+    app_is_exiting: bool,
+    close_to_tray: bool,
+    is_macos: bool,
+) -> MainWindowCloseAction {
     if app_is_exiting {
         MainWindowCloseAction::AllowClose
-    } else if close_to_tray {
+    } else if is_macos || close_to_tray {
+        // On macOS, clicking the close button keeps the app alive in the Dock
+        // (standard behavior); only Cmd+Q (RunEvent::ExitRequested) truly quits.
         MainWindowCloseAction::HideToTray
     } else {
         MainWindowCloseAction::ExitApp
@@ -1302,6 +1312,34 @@ fn schedule_notepad_replenish(app: &AppHandle, delay_ms: u64) {
     });
 }
 
+/// Applies platform-appropriate window chrome to a builder.
+///
+/// On macOS, when `use_native_titlebar` is set the window uses the native title
+/// bar in `Overlay` style (system traffic lights + native rounded corners).
+/// Floating tile surfaces opt out to stay frameless. All other platforms keep
+/// the custom frameless chrome (`decorations: false`) with optional transparency.
+fn apply_native_chrome<'a, M: tauri::Manager<Wry>>(
+    builder: WebviewWindowBuilder<'a, Wry, M>,
+    decorations: bool,
+    transparent: bool,
+    use_native_titlebar: bool,
+) -> WebviewWindowBuilder<'a, Wry, M> {
+    #[cfg(target_os = "macos")]
+    if use_native_titlebar {
+        // The native window background is opaque and rounded by AppKit, so the
+        // custom decorations/transparency settings are intentionally ignored.
+        let _ = (decorations, transparent);
+        return builder
+            .decorations(true)
+            .title_bar_style(tauri::TitleBarStyle::Overlay)
+            .hidden_title(true);
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = use_native_titlebar;
+
+    builder.decorations(decorations).transparent(transparent)
+}
+
 fn prewarm_notepad(app: &AppHandle) -> Result<(), AppError> {
     let pool = app.try_state::<NotepadPool>().ok_or_else(|| AppError {
         code: "noPool".into(),
@@ -1318,7 +1356,7 @@ fn prewarm_notepad(app: &AppHandle) -> Result<(), AppError> {
     let visual_options = dynamic_window_visual_options(&label);
     let locale = configured_locale();
 
-    WebviewWindowBuilder::new(
+    let builder = WebviewWindowBuilder::new(
         app,
         &label,
         WebviewUrl::App("index.html?view=notepad&standby=1".into()),
@@ -1327,14 +1365,14 @@ fn prewarm_notepad(app: &AppHandle) -> Result<(), AppError> {
     .inner_size(specs.width, specs.height)
     .min_inner_size(specs.min_width, specs.min_height)
     .resizable(true)
-    .decorations(false)
-    .transparent(visual_options.transparent)
     .always_on_top(true)
     .shadow(false)
     .skip_taskbar(true)
     .visible(false)
-    .focused(false)
-    .build()?;
+    .focused(false);
+
+    // Notepad windows use the native title bar on macOS.
+    apply_native_chrome(builder, false, visual_options.transparent, true).build()?;
 
     pool.put(label);
 
@@ -1539,18 +1577,22 @@ fn open_or_focus_window(
         return Ok(label.to_string());
     }
 
-    let window = WebviewWindowBuilder::new(app, label, WebviewUrl::App(opts.url.into()))
+    let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App(opts.url.into()))
         .title(opts.title)
         .inner_size(opts.specs.width, opts.specs.height)
         .min_inner_size(opts.specs.min_width, opts.specs.min_height)
         .resizable(true)
-        .decorations(opts.decorations)
-        .transparent(visual_options.transparent)
         .always_on_top(opts.always_on_top)
         .shadow(opts.shadow)
         .skip_taskbar(opts.skip_taskbar)
-        .visible(false)
-        .build()?;
+        .visible(false);
+
+    // Floating tile surfaces stay frameless; notepad and other windows use the
+    // native macOS title bar.
+    let use_native_titlebar = !label.starts_with("tile-");
+    let window =
+        apply_native_chrome(builder, opts.decorations, visual_options.transparent, use_native_titlebar)
+            .build()?;
 
     apply_window_bounds(&window, opts.bounds)?;
 
@@ -1620,7 +1662,7 @@ fn app_is_exiting(app: &AppHandle) -> bool {
         .unwrap_or(false)
 }
 
-fn mark_app_exiting(app: &AppHandle) {
+pub fn mark_app_exiting(app: &AppHandle) {
     if let Some(state) = app.try_state::<RuntimeState>() {
         state.allow_exit();
     }
@@ -2273,6 +2315,8 @@ mod tests {
             surface_width: None,
             surface_height: None,
             toggle_visibility_shortcut: "Ctrl+Shift+K".into(),
+            providers: Vec::new(),
+            default_models: Default::default(),
         };
 
         let error = match shortcut_bindings_from_config(&config) {
@@ -2285,9 +2329,24 @@ mod tests {
 
     #[test]
     fn chooses_exit_when_main_window_closes_without_close_to_tray() {
+        // Non-macOS with close-to-tray off → exit on close.
         assert_eq!(
-            main_window_close_action(false, false),
+            main_window_close_action(false, false, false),
             MainWindowCloseAction::ExitApp
+        );
+    }
+
+    #[test]
+    fn macos_keeps_app_alive_on_window_close() {
+        // macOS always hides on close regardless of the close-to-tray setting.
+        assert_eq!(
+            main_window_close_action(false, false, true),
+            MainWindowCloseAction::HideToTray
+        );
+        // But an explicit exit request still allows the window to close.
+        assert_eq!(
+            main_window_close_action(true, false, true),
+            MainWindowCloseAction::AllowClose
         );
     }
 
@@ -2324,6 +2383,8 @@ mod tests {
             surface_width: None,
             surface_height: None,
             toggle_visibility_shortcut: String::new(),
+            providers: Vec::new(),
+            default_models: Default::default(),
         };
         let next = AppConfig {
             locale: "en-US".into(),
@@ -2356,6 +2417,8 @@ mod tests {
             surface_width: None,
             surface_height: None,
             toggle_visibility_shortcut: "Ctrl+Shift+H".into(),
+            providers: Vec::new(),
+            default_models: Default::default(),
         };
 
         assert_eq!(

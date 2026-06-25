@@ -30,3 +30,8 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 tauri-plugin-clipboard-manager = "2"
 trash = "5"
+
+# macOS-only: used to toggle NSWindow.documentEdited (the unsaved dot in the red
+# traffic-light button). Already present transitively via Tauri.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"

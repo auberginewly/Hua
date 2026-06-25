@@ -14,12 +14,14 @@ import {
 } from "../features/notes/noteUtils";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { isMacOS } from "../features/windows/platform";
 import {
   animateCurrentWindowBounds,
   closeCurrentWindow,
   getCurrentWindowBounds,
   recycleCurrentNotepad,
   setCurrentWindowAlwaysOnTop,
+  setWindowDocumentEdited,
   showCurrentWindow,
   startCurrentWindowDrag,
   startCurrentWindowResize,
@@ -433,14 +435,33 @@ export function NotePad({
     }
   };
 
+  const closingRef = useRef(false);
+
   const handleClose = useCallback(() => {
     setIsExiting(true);
-    const closeSurface = surfaceMode === "tile" ? closeCurrentWindow : recycleCurrentNotepad;
-    void closeSurface().catch((error) => {
-      setIsExiting(false);
-      setErrorMessage(getErrorMessage(error));
-    });
-  }, [surfaceMode]);
+    const finishClose = () => {
+      if (surfaceMode === "tile") {
+        // close() re-fires CloseRequested; guard so our own close passes through.
+        closingRef.current = true;
+        void closeCurrentWindow().catch((error) => {
+          setIsExiting(false);
+          closingRef.current = false;
+          setErrorMessage(getErrorMessage(error));
+        });
+      } else {
+        void recycleCurrentNotepad().catch((error) => {
+          setIsExiting(false);
+          setErrorMessage(getErrorMessage(error));
+        });
+      }
+    };
+    // Save-on-close: flush unsaved edits before the window goes away.
+    if (status === "dirty" && hasDraftContent()) {
+      void handleSave().finally(finishClose);
+    } else {
+      finishClose();
+    }
+  }, [surfaceMode, status, hasDraftContent, handleSave]);
 
   const copyTileContent = useCallback(async () => {
     setErrorMessage(null);
@@ -497,6 +518,30 @@ export function NotePad({
 
     return () => window.clearTimeout(timer);
   }, [handleSave, hasDraftContent, mode, noteSurfaceAutoSave, status]);
+
+  // Reflect unsaved state in the macOS native title bar (dot in the red button).
+  useEffect(() => {
+    void setWindowDocumentEdited(status === "dirty").catch(() => undefined);
+  }, [status]);
+
+  // Native close (macOS red light) / OS close → save, then recycle or close.
+  const handleCloseRef = useRef(handleClose);
+  handleCloseRef.current = handleClose;
+  useEffect(() => {
+    let unlisten: Promise<() => void> | undefined;
+    try {
+      unlisten = getCurrentWindow().onCloseRequested((event) => {
+        if (closingRef.current) return; // our own programmatic close — allow it
+        event.preventDefault();
+        handleCloseRef.current();
+      });
+    } catch {
+      // not in a Tauri window (e.g. tests)
+    }
+    return () => {
+      void unlisten?.then((fn) => fn());
+    };
+  }, []);
 
   const handleDrag = (event: MouseEvent<HTMLElement>) => {
     const target = event.target as HTMLElement;
@@ -563,7 +608,9 @@ export function NotePad({
         <div className={padSurfaceClassName} data-surface-mode={surfaceMode}>
           <>
             <div
-              className="flex items-center justify-between px-4 pt-3 pb-0 cursor-default"
+              className={`flex items-center justify-between pt-3 pb-0 cursor-default ${
+                isMacOS ? "pl-[78px] pr-4" : "px-4"
+              }`}
               onMouseDown={handleDrag}
             >
               <div className="flex items-center gap-0.5">
@@ -616,23 +663,26 @@ export function NotePad({
                   </svg>
                 </button>
 
-                <button
-                  onClick={() => void handleClose()}
-                  className="group w-7 h-7 flex items-center justify-center rounded-lg text-ink-ghost hover:bg-danger-bg hover:text-red-400 transition-all duration-200 cursor-pointer"
-                  title={t("notepad.tooltip.close", { defaultValue: "关闭" })}
-                >
-                  <svg
-                    width="13"
-                    height="13"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
+                {/* close — hidden on macOS (native red traffic light handles it) */}
+                {!isMacOS && (
+                  <button
+                    onClick={() => void handleClose()}
+                    className="group w-7 h-7 flex items-center justify-center rounded-lg text-ink-ghost hover:bg-danger-bg hover:text-red-400 transition-all duration-200 cursor-pointer"
+                    title={t("notepad.tooltip.close", { defaultValue: "关闭" })}
                   >
-                    <path d="M18 6L6 18M6 6l12 12" />
-                  </svg>
-                </button>
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                    >
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
 
