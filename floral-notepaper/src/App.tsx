@@ -7,6 +7,7 @@ import { TileShowcase } from "./components/TileShowcase";
 import { AppSidebar } from "./components/AppSidebar";
 import { SettingsPage } from "./components/SettingsPage";
 import { DashboardPage } from "./components/DashboardPage";
+import { InkPlaybackPage } from "./components/InkPlaybackPage";
 import { WindowFrame } from "./components/WindowFrame";
 import { tabToIndentListener } from "indent-textarea";
 import { getConfig, saveConfig } from "./features/settings/api";
@@ -152,6 +153,8 @@ function App() {
           <div className="flex-1 flex flex-col min-w-0">
             {sidebarView === "home" ? (
               <DashboardPage />
+            ) : sidebarView === "playback" ? (
+              <InkPlaybackPage />
             ) : sidebarView === "settings" && settingsConfig ? (
               <SettingsPage
                 config={settingsConfig}

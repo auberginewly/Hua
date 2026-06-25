@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export type AppView = "home" | "main" | "settings";
+export type AppView = "home" | "main" | "settings" | "playback";
 
 interface AppSidebarProps {
   activeView: AppView;
@@ -33,6 +33,14 @@ function NoteIcon({ size = 18 }: { size?: number }) {
   );
 }
 
+function PlaybackIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="5 3 19 12 5 21 5 3" />
+    </svg>
+  );
+}
+
 function SettingsIcon({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -45,6 +53,7 @@ function SettingsIcon({ size = 18 }: { size?: number }) {
 const sidebarItems: SidebarItem[] = [
   { view: "home", label: "首页", icon: HomeIcon },
   { view: "main", label: "笔记", icon: NoteIcon },
+  { view: "playback", label: "墨迹回放", icon: PlaybackIcon },
 ];
 
 export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
