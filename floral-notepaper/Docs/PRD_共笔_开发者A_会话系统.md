@@ -2,65 +2,115 @@
 
 ## 你的职责
 
-端到端负责共笔模式的**完整会话系统**：数据模型（前后端统一）、本地持久化（Rust）、会话 CRUD、共笔页面整体 UI 框架、作者分色渲染。
+端到端负责共笔模式的**完整会话系统**：数据模型（前后端统一）、本地持久化（Rust）、会话 CRUD、共笔页面整体 UI 框架、作者分色渲染、写作统计、撤回、一键续写。
 
-## 需要你新建的文件
+## 功能清单
 
-### 1. `src/features/cowrite/types.ts` — 数据模型 ✅ 已创建
+| 功能 | 状态 |
+|---|---|
+| 会话 CRUD（新建/切换/删除） | ✅ 已实现 |
+| AI 身份选择（5 种） | ✅ 已实现 |
+| 交替写作 | ✅ 已实现 |
+| 作者分色渲染 | ✅ 已实现 |
+| 合并到笔记 | ✅ 已实现 |
+| 写作统计面板 | 🆕 待实现 |
+| 撤回上一步 | 🆕 待实现 |
+| 一键续写模式 | 🆕 待实现 |
 
-整个共笔功能共享的类型定义，开发者 B 也会引用这个文件。已完成，请审阅。
+---
 
-### 2. `src/features/cowrite/api.ts` — 前端 API 层 ✅ 已创建
+## 🆕 新增功能详情
 
-封装 7 个 Tauri 命令调用。已完成，请审阅。
+### 功能 1：写作统计面板
 
-### 3. `src/features/cowrite/coWriteUtils.ts` — 工具函数 ✅ 已创建
+在共笔页面的内容区顶部增加一个可折叠的统计栏，实时显示：
 
-`splitBlocksByAuthor`、`getCurrentTurn`、`blocksToText` 等。已完成，请审阅。
+- **总段落数**：human 几段 + AI 几段
+- **字数统计**：human 总字数 / AI 总字数
+- **字数占比**：一个简单的条形图（bamboo 绿 = AI，墨色 = human）
+- **会话时长**：从第一段到最后一段的时间跨度
+- **最后活跃时间**：距上次编辑多久
 
-### 4. `src/components/CoWritePage.tsx` — 主页面 ✅ 已创建
+UI 形态：一个可折叠的横条，默认折叠，点击展开。展开后占用内容区上方约 60px 高度。
 
-完整的共笔页面组件，包含：
-- 左侧会话列表（新建 / 切换 / 删除）
-- 新建会话弹窗（5 种 AI 身份选择）
-- 交替写编辑区（human 写 → 点"轮到 AI" → AI 返回）
-- 作者分色（human 墨色 / AI bamboo 绿 + 浅绿底色）
-- 轮次指示器（"轮到你了" / "轮到 AI"）
-- AI 思考 loading 动画
-- 合并到笔记（点击段落选中 → 合并选中内容回主笔记）
+需要新增类型：
 
-已完成，请审阅。
+```typescript
+interface CoWriteStats {
+  humanBlocks: number;
+  aiBlocks: number;
+  humanChars: number;
+  aiChars: number;
+  totalTurns: number;
+  durationMs: number;
+  lastActiveAt: number;
+}
+```
 
-### 5. `src-tauri/src/services/cowrite.rs` — Rust 后端存储 ✅ 已创建
+### 功能 2：撤回上一步
 
-- `CoWriteSession` 数据模型（JSON 持久化，路径 `<base_dir>/cowrite/<sessionId>.json`）
-- 完整 CRUD：create / get / list / append_human / append_ai / merge_to_note / delete
-- 错误处理、目录自动创建
+可以在 `handleUndo` 中发起撤回：
 
-已完成，请审阅。
+1. 用户点击"撤回"按钮
+2. 弹出确认（"撤回 AI 的最后一段回复？"或"撤回你最后的输入？"）
+3. 根据 `session.blocks` 的最后一条的 `author` 决定撤回内容描述
+4. 调用 `cowrite_undo_last(sessionId)` → 后端移除 `blocks` 的最后一项并重新保存
+5. 前端刷新 `activeSession`
 
-## 需要你修改的文件
+涉及修改：
+- `api.ts`：新增 `undoLastTurn(sessionId)`
+- `cowrite.rs`：新增 `undo_last_turn(session_id)` 方法
+- `lib.rs`：新增 `cowrite_undo_last` Tauri 命令
+- `CoWritePage.tsx`：在输入区旁加撤回按钮
+
+### 功能 3：一键续写模式
+
+在输入区上方增加一个开关按钮：
+
+- 默认关闭，按钮文案"手动模式"
+- 点击开启，变为"自动续写"，按钮高亮（bamboo 绿底）
+- 开启后：用户提交 human 文字 → 自动立刻触发 AI 续写（不需要再点"轮到 AI"）
+- AI 返回后 → human 可以继续写下一段
+- 关闭后恢复手动模式
+
+状态：`const [autoTurn, setAutoTurn] = useState(false);`
+
+在 `handleHumanSubmit` 中增加逻辑：提交成功后如果 `autoTurn` 为 true，自动调 `handleAITurn()`。
+
+---
+
+## 需要你维护的文件
+
+### 新建（已完成）
+
+| 文件 | 说明 | 状态 |
+|---|---|---|
+| `src/features/cowrite/types.ts` | 数据模型定义 | ✅ |
+| `src/features/cowrite/api.ts` | Tauri 命令封装 | 需更新 🆕 |
+| `src/features/cowrite/coWriteUtils.ts` | 工具函数 | 需更新 🆕 |
+| `src/components/CoWritePage.tsx` | 共笔主页面 | 需更新 🆕 |
+| `src-tauri/src/services/cowrite.rs` | Rust 后端存储 | 需更新 🆕 |
+
+### 修改（已完成）
 
 | 文件 | 改动 | 状态 |
 |---|---|---|
 | `src-tauri/src/services/mod.rs` | 加 `pub mod cowrite;` | ✅ |
-| `src-tauri/src/lib.rs` | 新增 7 个 Tauri 命令 + import + invoke_handler 注册 | ✅ |
+| `src-tauri/src/lib.rs` | Tauri 命令注册 | 需更新 🆕 |
 
-## 接口约定（和开发者 B 的"合同"）
+---
 
-### Tauri 命令（你暴露，B 的 coWriteAI.ts 会被 A 的 CoWritePage 调用）
+## 新增 Tauri 命令
+
+在原有 7 个命令基础上新增 1 个：
 
 ```
-cowrite_create_session(noteId, identity, customPrompt?) → CoWriteSession
-cowrite_append_human(sessionId, text) → CoWriteSession
-cowrite_append_ai(sessionId, text) → CoWriteSession
-cowrite_get_session(sessionId) → CoWriteSession
-cowrite_list_sessions(noteId) → CoWriteSessionSummary[]
-cowrite_merge_to_note(sessionId, selectedBlockIndices[]) → string
-cowrite_delete_session(sessionId) → void
+cowrite_undo_last(sessionId) → CoWriteSession
 ```
 
-### 数据模型（你定义在 types.ts，Rust 侧需完全对应）
+## 接口约定
+
+### 数据模型
 
 ```typescript
 type CoWriteIdentity = "continuator" | "questioner" | "opposer" | "poetic" | "custom";
@@ -80,19 +130,29 @@ interface CoWriteSession {
   createdAt: string;
   updatedAt: string;
 }
+
+interface CoWriteStats {
+  humanBlocks: number;
+  aiBlocks: number;
+  humanChars: number;
+  aiChars: number;
+  totalTurns: number;
+  durationMs: number;
+  lastActiveAt: number;
+}
 ```
 
 ### 组件接口
 
-`CoWritePage` 需要以下 props（由开发 B 在 `App.tsx` 中传入）：
-
 ```typescript
 interface CoWritePageProps {
-  providers: ProviderConfig[];  // 当前配置的 AI 供应商列表
-  noteId: string;               // 当前笔记 ID
-  noteContent: string;          // 当前笔记内容
+  providers: ProviderConfig[];
+  noteId: string;
+  noteContent: string;
 }
 ```
+
+---
 
 ## 验收标准
 
@@ -104,3 +164,6 @@ interface CoWritePageProps {
 - [ ] 用户可以删除会话
 - [ ] 用户可以选中段落并合并到原笔记
 - [ ] 页面样式和现有应用风格一致（bamboo 绿 + paper 色系）
+- [ ] 🆕 统计面板可折叠展开，实时显示 human/AI 字数占比
+- [ ] 🆕 撤回按钮可撤回最近一步（human 或 AI），带确认提示
+- [ ] 🆕 一键续写模式开启后 human 提交自动触发 AI 续写
