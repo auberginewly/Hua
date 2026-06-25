@@ -183,6 +183,42 @@ pub fn append_ai_text(session_id: &str, text: &str) -> Result<CoWriteSession, Ap
     Ok(session)
 }
 
+pub fn replace_last_ai_text(session_id: &str, text: &str) -> Result<CoWriteSession, AppError> {
+    let mut session = get_session(session_id)?;
+    let last_index = session
+        .blocks
+        .iter()
+        .rposition(|b| b.author == "ai")
+        .ok_or_else(|| AppError {
+            code: "noAiBlock".into(),
+            message: "当前会话没有可替换的 AI 段落".into(),
+            details: BTreeMap::new(),
+        })?;
+    session.blocks[last_index] = AuthorBlock {
+        author: "ai".to_string(),
+        text: text.to_string(),
+        timestamp: now_ms(),
+    };
+    session.updated_at = Utc::now();
+    save_session(&session)?;
+    Ok(session)
+}
+
+pub fn undo_last(session_id: &str) -> Result<CoWriteSession, AppError> {
+    let mut session = get_session(session_id)?;
+    if session.blocks.is_empty() {
+        return Err(AppError {
+            code: "emptySession".into(),
+            message: "当前会话没有可撤回的段落".into(),
+            details: BTreeMap::new(),
+        });
+    }
+    session.blocks.pop();
+    session.updated_at = Utc::now();
+    save_session(&session)?;
+    Ok(session)
+}
+
 pub fn merge_to_note(
     app: &AppHandle,
     session_id: &str,

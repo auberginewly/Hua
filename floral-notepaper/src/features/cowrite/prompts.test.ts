@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { IDENTITY_PRESETS, getSystemPrompt, buildCoWriteMessages } from "./prompts";
+import {
+  IDENTITY_PRESETS,
+  SCENARIO_PRESETS,
+  getScenario,
+  getSystemPrompt,
+  buildCoWriteMessages,
+} from "./prompts";
 import type { CoWriteSession } from "./types";
 
 describe("cowrite prompts", () => {
@@ -55,5 +61,28 @@ describe("cowrite prompts", () => {
     const messages = buildCoWriteMessages(session, "questioner");
     expect(messages[1].content).toContain("<human>今天天气很好。</human>");
     expect(messages[1].content).toContain("<ai>适合出去走走。</ai>");
+  });
+
+  it("has 4 scenario presets", () => {
+    expect(SCENARIO_PRESETS).toHaveLength(4);
+    expect(SCENARIO_PRESETS.map((s) => s.key)).toEqual([
+      "letter",
+      "story",
+      "debate",
+      "diary",
+    ]);
+  });
+
+  it("looks up scenario by key", () => {
+    const story = getScenario("story");
+    expect(story).toBeDefined();
+    expect(story?.label).toBe("故事接龙");
+    expect(story?.identity).toBe("continuator");
+    expect(story?.openingLine).toBeTruthy();
+  });
+
+  it("uses customPrompt for non-custom identity when provided", () => {
+    const scenarioPrompt = "你正在一起写书信。";
+    expect(getSystemPrompt("continuator", scenarioPrompt)).toBe(scenarioPrompt);
   });
 });

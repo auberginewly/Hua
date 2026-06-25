@@ -361,6 +361,16 @@ fn cowrite_merge_to_note(
 }
 
 #[tauri::command]
+fn cowrite_replace_last_ai(session_id: String, text: String) -> Result<CoWriteSession, AppError> {
+    cowrite::replace_last_ai_text(&session_id, &text)
+}
+
+#[tauri::command]
+fn cowrite_undo_last(session_id: String) -> Result<CoWriteSession, AppError> {
+    cowrite::undo_last(&session_id)
+}
+
+#[tauri::command]
 fn cowrite_delete_session(session_id: String) -> Result<(), AppError> {
     cowrite::delete_session(&session_id)
 }
@@ -429,6 +439,8 @@ pub fn run() {
             cowrite_get_session,
             cowrite_list_sessions,
             cowrite_merge_to_note,
+            cowrite_replace_last_ai,
+            cowrite_undo_last,
             cowrite_delete_session
         ])
         .run(tauri::generate_context!())

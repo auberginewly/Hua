@@ -18,7 +18,7 @@ import type { AppView } from "./components/AppSidebar";
 import { getInitialRoute } from "./features/windows/windowRoutes";
 import { syncLanguage } from "./locales";
 import { listen } from "@tauri-apps/api/event";
-import { listNotes } from "./features/notes/api";
+import { listNotes, getNote } from "./features/notes/api";
 
 function App() {
   const route = getInitialRoute();
@@ -27,11 +27,13 @@ function App() {
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [settingsConfig, setSettingsConfig] = useState<AppConfig | null>(null);
   const [currentNoteId, setCurrentNoteId] = useState("");
+  const [currentNoteContent, setCurrentNoteContent] = useState("");
 
   const handleCurrentNoteChange = useCallback(
     (note: { id: string; content: string }) => {
       console.log("[App] handleCurrentNoteChange", note);
       setCurrentNoteId(note.id);
+      setCurrentNoteContent(note.content);
     },
     [],
   );
@@ -40,9 +42,11 @@ function App() {
   // 这样用户可以直接点“共笔”而不必先进入笔记页手动选择。
   useEffect(() => {
     listNotes()
-      .then((notes) => {
-        if (notes.length > 0) {
-          setCurrentNoteId((id) => id || notes[0].id);
+      .then(async (notes) => {
+        if (notes.length > 0 && !currentNoteId) {
+          const note = await getNote(notes[0].id);
+          setCurrentNoteId(note.id);
+          setCurrentNoteContent(note.content);
         }
       })
       .catch(() => {});
@@ -179,7 +183,11 @@ function App() {
             ) : sidebarView === "playback" ? (
               <InkPlaybackPage />
             ) : sidebarView === "cowrite" ? (
-              <CoWritePage providers={providers} noteId={currentNoteId} />
+              <CoWritePage
+                providers={providers}
+                noteId={currentNoteId}
+                noteContent={currentNoteContent}
+              />
             ) : sidebarView === "settings" && settingsConfig ? (
               <SettingsPage
                 config={settingsConfig}
