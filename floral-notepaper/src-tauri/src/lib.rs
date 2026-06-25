@@ -359,6 +359,30 @@ fn cowrite_delete_session(session_id: String) -> Result<(), AppError> {
     cowrite::delete_session(&session_id)
 }
 
+/// Toggles the macOS native "document edited" indicator — a dot rendered inside
+/// the red traffic-light close button when there are unsaved changes. No-op on
+/// other platforms.
+#[tauri::command]
+fn set_document_edited(window: tauri::Window, edited: bool) {
+    #[cfg(target_os = "macos")]
+    {
+        use objc2::msg_send;
+        use objc2::runtime::{AnyObject, Bool};
+        if let Ok(ptr) = window.ns_window() {
+            let ns_window = ptr as *mut AnyObject;
+            if !ns_window.is_null() {
+                unsafe {
+                    let _: () = msg_send![&*ns_window, setDocumentEdited: Bool::new(edited)];
+                }
+            }
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (window, edited);
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -422,8 +446,29 @@ pub fn run() {
             cowrite_get_session,
             cowrite_list_sessions,
             cowrite_merge_to_note,
-            cowrite_delete_session
+            cowrite_delete_session,
+            set_document_edited
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| match event {
+            // Cmd+Q / Quit menu / app.exit(): flag the app as exiting so that any
+            // window CloseRequested during teardown is allowed to close instead of
+            // being hidden to the Dock.
+            tauri::RunEvent::ExitRequested { .. } => {
+                desktop::mark_app_exiting(app);
+            }
+            // macOS: clicking the Dock icon with no visible windows re-shows the
+            // main window (the close button only hides it).
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Reopen {
+                has_visible_windows,
+                ..
+            } => {
+                if !has_visible_windows {
+                    let _ = desktop::show_main_window(app);
+                }
+            }
+            _ => {}
+        });
 }

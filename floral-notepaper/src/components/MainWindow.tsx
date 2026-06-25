@@ -3,6 +3,7 @@ import type { MouseEvent } from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { emit, listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { exportMarkdownNote, importMarkdownNote } from "../features/importExport/api";
 import { MarkdownPreview } from "../features/markdown/MarkdownPreview";
 import {
@@ -52,6 +53,7 @@ import {
   type NoteContextMenuAction,
 } from "../features/notes/noteContextMenu";
 import { openNotepadWindow, takeStartupFile, toggleTileWindow } from "../features/windows/api";
+import { setWindowDocumentEdited } from "../features/windows/controls";
 
 import {
   TILE_WINDOW_CLOSED_EVENT,
@@ -865,6 +867,41 @@ export function MainWindow({
 
     return () => window.clearTimeout(timer);
   }, [saveCurrentNote, saveState, selectedId]);
+
+  // Reflect unsaved state in the macOS native title bar (dot in the red button).
+  useEffect(() => {
+    void setWindowDocumentEdited(saveState === "dirty" || saveState === "saving").catch(
+      () => undefined,
+    );
+  }, [saveState]);
+
+  const saveCurrentNoteRef = useRef(saveCurrentNote);
+  saveCurrentNoteRef.current = saveCurrentNote;
+
+  // Save-on-close: flush unsaved edits when the window hides (close button) or
+  // the app is about to quit. On macOS the window only hides (state preserved),
+  // so the async save completes even after the window disappears.
+  useEffect(() => {
+    const flush = () => {
+      if (saveStateRef.current === "dirty") {
+        void saveCurrentNoteRef.current();
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    let unlisten: Promise<() => void> | undefined;
+    try {
+      unlisten = getCurrentWindow().onCloseRequested(() => flush());
+    } catch {
+      // not in a Tauri window (e.g. tests)
+    }
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      void unlisten?.then((fn) => fn());
+    };
+  }, []);
 
   const handleNewNote = async () => {
     setErrorMessage(null);
