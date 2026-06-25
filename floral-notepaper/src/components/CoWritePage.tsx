@@ -354,15 +354,14 @@ export function CoWritePage({
         setActiveSession(updated);
         setInspirations([]);
         setErrorMessage(null);
-        if (autoTurn) {
-          await runAITurn(updated);
-        }
+        // 灵感卡片点击后自动写入 human 开头并触发 AI 续写
+        await runAITurn(updated);
       } catch (e) {
         console.error(e);
         setErrorMessage(e instanceof Error ? e.message : "使用灵感失败");
       }
     },
-    [activeSessionId, autoTurn, runAITurn],
+    [activeSessionId, runAITurn],
   );
 
   const toggleBlock = (index: number) => {
