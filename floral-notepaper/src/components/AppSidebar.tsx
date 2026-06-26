@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export type AppView = "home" | "main" | "settings" | "playback" | "cowrite";
+export type AppView = "home" | "main" | "settings" | "playback" | "cowrite" | "elysia";
 
 interface AppSidebarProps {
   activeView: AppView;
@@ -60,11 +60,22 @@ function CowriteIcon({ size = 18 }: { size?: number }) {
   );
 }
 
+function ElysiaIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l4 2" />
+      <path d="M8 10h.01M16 14h.01" opacity="0.5" />
+    </svg>
+  );
+}
+
 const sidebarItems: SidebarItem[] = [
   { view: "home", label: "首页", icon: HomeIcon },
   { view: "main", label: "笔记", icon: NoteIcon },
   { view: "playback", label: "墨迹回放", icon: PlaybackIcon },
   { view: "cowrite", label: "共笔", icon: CowriteIcon },
+  { view: "elysia", label: "Elysia", icon: ElysiaIcon },
 ];
 
 export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
