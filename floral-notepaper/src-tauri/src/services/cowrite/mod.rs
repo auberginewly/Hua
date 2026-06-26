@@ -17,6 +17,8 @@ pub struct AuthorBlock {
     pub author: String,
     pub text: String,
     pub timestamp: i64,
+    #[serde(default)]
+    pub merged: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -43,6 +45,13 @@ pub struct CoWriteSessionSummary {
     pub preview: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MergeToNoteResult {
+    pub content: String,
+    pub session: CoWriteSession,
 }
 
 fn cowrite_dir() -> Result<PathBuf, AppError> {
@@ -165,6 +174,7 @@ pub fn append_human_text(session_id: &str, text: &str) -> Result<CoWriteSession,
         author: "human".to_string(),
         text: text.to_string(),
         timestamp: now_ms(),
+        merged: false,
     });
     session.updated_at = Utc::now();
     save_session(&session)?;
@@ -177,6 +187,7 @@ pub fn append_ai_text(session_id: &str, text: &str) -> Result<CoWriteSession, Ap
         author: "ai".to_string(),
         text: text.to_string(),
         timestamp: now_ms(),
+        merged: false,
     });
     session.updated_at = Utc::now();
     save_session(&session)?;
@@ -198,6 +209,7 @@ pub fn replace_last_ai_text(session_id: &str, text: &str) -> Result<CoWriteSessi
         author: "ai".to_string(),
         text: text.to_string(),
         timestamp: now_ms(),
+        merged: false,
     };
     session.updated_at = Utc::now();
     save_session(&session)?;
@@ -223,8 +235,8 @@ pub fn merge_to_note(
     app: &AppHandle,
     session_id: &str,
     selected_block_indices: &[usize],
-) -> Result<String, AppError> {
-    let session = get_session(session_id)?;
+) -> Result<MergeToNoteResult, AppError> {
+    let mut session = get_session(session_id)?;
     let store = default_store()?;
     let note = store.read_note(&session.note_id)?;
 
@@ -251,8 +263,19 @@ pub fn merge_to_note(
         },
     )?;
 
+    for &idx in selected_block_indices {
+        if let Some(block) = session.blocks.get_mut(idx) {
+            block.merged = true;
+        }
+    }
+    session.updated_at = Utc::now();
+    save_session(&session)?;
+
     let _ = app.emit("notes-changed", ());
-    Ok(new_content)
+    Ok(MergeToNoteResult {
+        content: new_content,
+        session,
+    })
 }
 
 pub fn delete_session(session_id: &str) -> Result<(), AppError> {
