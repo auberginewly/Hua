@@ -3,7 +3,7 @@ pub mod locales;
 pub mod services;
 
 use locales::Locale;
-use services::cowrite::{self, CoWriteSession, CoWriteSessionSummary};
+use services::cowrite::{self, CoWriteSession, CoWriteSessionSummary, MergeToNoteResult};
 use services::notes::{default_store, AppConfig, AppError, Note, NoteMetadata, SaveNoteRequest};
 use services::stats;
 use std::{fs, path::PathBuf};
@@ -356,7 +356,7 @@ fn cowrite_merge_to_note(
     app: AppHandle,
     session_id: String,
     selected_block_indices: Vec<usize>,
-) -> Result<String, AppError> {
+) -> Result<MergeToNoteResult, AppError> {
     cowrite::merge_to_note(&app, &session_id, &selected_block_indices)
 }
 

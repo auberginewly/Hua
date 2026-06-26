@@ -26,7 +26,7 @@ import { uploadConfig, downloadConfig } from "./features/sync/api";
 function App() {
   const route = getInitialRoute();
 
-  const [sidebarView, setSidebarView] = useState<AppView>("home");
+  const [sidebarView, setSidebarView] = useState<AppView>("cowrite");
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [settingsConfig, setSettingsConfig] = useState<AppConfig | null>(null);
   const [currentNoteId, setCurrentNoteId] = useState("");
@@ -82,14 +82,11 @@ function App() {
     [userId],
   );
 
-  const handleCurrentNoteChange = useCallback(
-    (note: { id: string; content: string }) => {
-      console.log("[App] handleCurrentNoteChange", note);
-      setCurrentNoteId(note.id);
-      setCurrentNoteContent(note.content);
-    },
-    [],
-  );
+  const handleCurrentNoteChange = useCallback((note: { id: string; content: string }) => {
+    console.log("[App] handleCurrentNoteChange", note);
+    setCurrentNoteId(note.id);
+    setCurrentNoteContent(note.content);
+  }, []);
 
   // 启动时如果还没有选中笔记，自动选中最新的笔记，
   // 这样用户可以直接点“共笔”而不必先进入笔记页手动选择。
@@ -228,10 +225,7 @@ function App() {
     <ContextMenuProvider>
       <WindowFrame>
         <div className="h-full font-body text-ink overflow-hidden flex">
-          <AppSidebar
-            activeView={sidebarView}
-            onViewChange={setSidebarView}
-          />
+          <AppSidebar activeView={sidebarView} onViewChange={setSidebarView} />
           <div className="flex-1 flex flex-col min-w-0">
             {sidebarView === "home" ? (
               <DashboardPage />
@@ -242,6 +236,7 @@ function App() {
                 providers={providers}
                 noteId={currentNoteId}
                 noteContent={currentNoteContent}
+                onNoteContentChange={setCurrentNoteContent}
               />
             ) : sidebarView === "elysia" ? (
               <ElysiaPage />

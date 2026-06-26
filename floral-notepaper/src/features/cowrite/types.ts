@@ -1,14 +1,15 @@
 export type CoWriteIdentity =
   | "continuator" // 续写者
-  | "questioner"  // 追问者
-  | "opposer"     // 反对者
-  | "poetic"      // 诗意者
-  | "custom";     // 自定义
+  | "questioner" // 追问者
+  | "opposer" // 反对者
+  | "poetic" // 诗意者
+  | "custom"; // 自定义
 
 export interface AuthorBlock {
   author: "human" | "ai";
   text: string;
   timestamp: number;
+  merged?: boolean;
 }
 
 export interface CoWriteSession {
